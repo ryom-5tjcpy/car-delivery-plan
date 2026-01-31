@@ -1,7 +1,7 @@
 # main.py
 
-from dimod import BinaryQuadraticModel
-from dwave.system import DWaveSampler, EmbeddingComposite
+import openjij as oj
+from openjij import BinaryQuadraticModel
 
 # Define the problem (simple Ising model)
 # H = -J_12 * s_1 * s_2 - h_1 * s_1 - h_2 * s_2
@@ -9,10 +9,8 @@ from dwave.system import DWaveSampler, EmbeddingComposite
 
 bqm = BinaryQuadraticModel({0: 0.0, 1: 0.0}, {(0, 1): -1.0}, 0.0, 'SPIN')
 
-# Set up the D-Wave sampler
-# You will need to have your D-Wave API token configured
-# For local testing, you can use a classical sampler like ExactSolver
-sampler = EmbeddingComposite(DWaveSampler())
+# Set up the OpenJij sampler (default is SA, simulated annealing)
+sampler = oj.SASampler()
 
 # Run the problem on the sampler
 sampleset = sampler.sample(bqm, num_reads=10)
