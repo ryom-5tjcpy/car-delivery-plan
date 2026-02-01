@@ -2,7 +2,7 @@
 
 import openjij as oj
 from openjij import BinaryQuadraticModel
-# import pandas as pd # pandas is not used in the new problem, so it can be removed
+import pandas as pd
 
 def solve_combinatorial_problem(n: int, k: int):
     """
@@ -37,40 +37,15 @@ def solve_combinatorial_problem(n: int, k: int):
     return sampleset
 
 if __name__ == "__main__":
-    # Example usage:
-    n_vars = 5
-    target_k = 2
-    print(f"Solving for n={n_vars}, k={target_k}")
-    sampleset = solve_combinatorial_problem(n_vars, target_k)
+    input_data = pd.read_excel('data/sample/山陽IC_INPUT.xlsx', header=1, usecols='B:J')
+    delivery_vehicles = pd.read_csv('data/sanyo/delivery-vehicle.csv')
 
-    # Print the results
-    print("--------------------------------------------------------------------------------")
-    print("Sampleset Results:")  
+    input_data = input_data.drop(87).reset_index(drop=True)
+    delivery = input_data['回送先']
 
-    # Verify the constraint for the best solution
-    best_sample = sampleset.first.sample
-    sum_x = sum(best_sample[i] for i in range(n_vars))
-    print(f"Best sample: {best_sample}")
-    print(f"Sum of x_i in best sample: {sum_x}")
-    print(f"Target k: {target_k}")
-    if sum_x == target_k:
-        print("Constraint sum(x_i) = k is satisfied!")
-    else:
-        print("Constraint sum(x_i) = k is NOT satisfied for the best sample.")
+    n = len(input_data)
+    k = delivery_vehicles['n'][0]
 
-    print("\nTrying another example:")
-    n_vars_2 = 10
-    target_k_2 = 3
-    print(f"Solving for n={n_vars_2}, k={target_k_2}")
-    sampleset_2 = solve_combinatorial_problem(n_vars_2, target_k_2)
-    print("--------------------------------------------------------------------------------")
-    print("Sampleset Results:")
-    best_sample_2 = sampleset_2.first.sample
-    sum_x_2 = sum(best_sample_2[i] for i in range(n_vars_2))
-    print(f"Best sample: {best_sample_2}")
-    print(f"Sum of x_i in best sample: {sum_x_2}")
-    print(f"Target k: {target_k_2}")
-    if sum_x_2 == target_k_2:
-        print("Constraint sum(x_i) = k is satisfied!")
-    else:
-        print("Constraint sum(x_i) = k is NOT satisfied for the best sample.")
+    samplest = solve_combinatorial_problem(n, k)
+    print(samplest.first.sample)
+    print(sum(samplest.first.sample[i] for i in range(n)))
