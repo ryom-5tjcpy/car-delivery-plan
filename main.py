@@ -30,9 +30,11 @@ def create_evaluate1(n: int, delivery: pd.Series):
                 else:
                     e[i, j] = 1 if a[1] == b[1] else 2
 
+    return e
 
 
-def solve_combinatorial_problem(n: int, k: int):
+
+def solve_combinatorial_problem(n: int, k: int, e):
     """
     Solves a combinatorial optimization problem with the constraint sum(x_i) = k
     for n binary variables x_i using quantum annealing with OpenJij.
@@ -53,6 +55,8 @@ def solve_combinatorial_problem(n: int, k: int):
 
     linear_terms = {i: (1 - 2 * k) for i in range(n)}
     quadratic_terms = {(i, j): 2 for i in range(n) for j in range(i + 1, n)}
+    for i in quadratic_terms:
+        quadratic_terms[i] = quadratic_terms[i] + e[i]
 
     bqm = BinaryQuadraticModel(linear_terms, quadratic_terms, 0.0, 'BINARY')
 
@@ -76,5 +80,6 @@ if __name__ == "__main__":
 
     e = create_evaluate1(n, delivery)
 
-    samplest = solve_combinatorial_problem(n, k)
+    samplest = solve_combinatorial_problem(n, k, e)
+    print(samplest.first.sample)
     print(sum(samplest.first.sample[i] for i in range(n)))
