@@ -1,5 +1,6 @@
 # main.py
 
+import numpy as np
 import openjij as oj
 from openjij import BinaryQuadraticModel
 import pandas as pd
@@ -81,5 +82,11 @@ if __name__ == "__main__":
     e = create_evaluate1(n, delivery)
 
     samplest = solve_combinatorial_problem(n, k, e)
-    print(samplest.first.sample)
+    print(samplest)
     print(sum(samplest.first.sample[i] for i in range(n)))
+
+    key = np.zeros(n, dtype=bool)
+    for i in range(n):
+        key[i] = samplest.first.sample[i] == 1
+    
+    print(input_data[key])
