@@ -4,6 +4,34 @@ import openjij as oj
 from openjij import BinaryQuadraticModel
 import pandas as pd
 
+def create_evaluate1(n: int, delivery: pd.Series):
+    e = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
+    s = delivery.str.split('→')
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            a = s[i]
+            b = s[j]
+
+            m1 = len(a)
+            m2 = len(b)
+            if m1 == 1 and m2 == 1:
+                e[i, j] = 0 if a[0] == b[0] else 2
+            elif m1 == 1 and m2 == 2:
+                if a[0] == b[1]:
+                    e[i, j] = 1
+                elif a[0] == b[0]:
+                    e[i, j] = 1
+                else:
+                    e[i, j] = 2
+            elif m1 == 2 and m2 == 2:
+                if a[0] == b[0]:
+                    e[i, j] = 0 if a[1] == b[1] else 1
+                else:
+                    e[i, j] = 1 if a[1] == b[1] else 2
+
+
+
 def solve_combinatorial_problem(n: int, k: int):
     """
     Solves a combinatorial optimization problem with the constraint sum(x_i) = k
@@ -46,6 +74,7 @@ if __name__ == "__main__":
     n = len(input_data)
     k = delivery_vehicles['n'][0]
 
+    e = create_evaluate1(n, delivery)
+
     samplest = solve_combinatorial_problem(n, k)
-    print(samplest.first.sample)
     print(sum(samplest.first.sample[i] for i in range(n)))
