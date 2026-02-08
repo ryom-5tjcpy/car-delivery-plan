@@ -7,29 +7,37 @@ import pandas as pd
 
 def create_evaluate1(n: int, delivery: pd.Series):
     e = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
-    s = delivery.str.split('→')
+    delivery = delivery.str.replace("（法人）"  , "")
+    s = delivery.str.split(' → ')
 
     for i in range(n):
+        s_i = s[i]
+        m_i = len(s_i)
         for j in range(i + 1, n):
-            a = s[i]
-            b = s[j]
+            s_j = s[j]
 
-            m1 = len(a)
-            m2 = len(b)
-            if m1 == 1 and m2 == 1:
-                e[i, j] = 0 if a[0] == b[0] else 2
-            elif m1 == 1 and m2 == 2:
-                if a[0] == b[1]:
+            m_j = len(s_j)
+            if m_i == 1 and m_j == 1:
+                e[i, j] = 0 if s_i[0] == s_j[0] else 5
+            elif m_i == 1 and m_j == 2:
+                if s_i[0] == s_j[1]:
                     e[i, j] = 1
-                elif a[0] == b[0]:
+                elif s_i[0] == s_j[0]:
+                    e[i, j] = 10
+                else:
+                    e[i, j] = 5
+            elif m_i == 2 and m_i == 1:
+                if s_i[0] == s_j[0]:
+                    e[i, j] = 10
+                elif s_i[1] == s_j[0]:
                     e[i, j] = 1
                 else:
-                    e[i, j] = 2
-            elif m1 == 2 and m2 == 2:
-                if a[0] == b[0]:
-                    e[i, j] = 0 if a[1] == b[1] else 1
+                    e[i, j] = 5
+            elif m_i == 2 and m_j == 2:
+                if s_i[0] == s_j[0]:
+                    e[i, j] = 0 if s_i[1] == s_j[1] else 1
                 else:
-                    e[i, j] = 1 if a[1] == b[1] else 2
+                    e[i, j] = 10
 
     return e
 
@@ -65,7 +73,7 @@ def solve_combinatorial_problem(n: int, k: int, e):
     sampler = oj.SASampler()
 
     # Run the problem on the sampler
-    sampleset = sampler.sample(bqm, num_reads=100) # Increased num_reads for potentially better results
+    sampleset = sampler.sample(bqm, num_reads=10000) # Increased num_reads for potentially better results
 
     return sampleset
 
@@ -81,12 +89,12 @@ if __name__ == "__main__":
 
     e = create_evaluate1(n, delivery)
 
-    samplest = solve_combinatorial_problem(n, k, e)
-    print(samplest)
-    print(sum(samplest.first.sample[i] for i in range(n)))
+    sampleset = solve_combinatorial_problem(n, k, e)
+    print(sampleset)
+    print(sum(sampleset.first.sample[i] for i in range(n)))
 
     key = np.zeros(n, dtype=bool)
     for i in range(n):
-        key[i] = samplest.first.sample[i] == 1
+        key[i] = sampleset.first.sample[i] == 1
     
-    print(input_data[key])
+    print(delivery[key])
