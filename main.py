@@ -5,41 +5,49 @@ import openjij as oj
 from openjij import BinaryQuadraticModel
 import pandas as pd
 
-def create_evaluate1(n: int, delivery: pd.Series):
-    e = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
+def create_evaluate1(n: int, delivery: pd.Series, dp: str):
+    quad = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
+    diag = {i: 0 for i in range(n)}
     delivery = delivery.str.replace("（法人）"  , "")
     s = delivery.str.split(' → ')
 
     for i in range(n):
         s_i = s[i]
         m_i = len(s_i)
+
+        if m_i == 2 and s_i[0] != dp:
+            diag[i] = 10
+
         for j in range(i + 1, n):
             s_j = s[j]
 
             m_j = len(s_j)
             if m_i == 1 and m_j == 1:
-                e[i, j] = 0 if s_i[0] == s_j[0] else 5
+                quad[i, j] = 0 if s_i[0] == s_j[0] else 5
             elif m_i == 1 and m_j == 2:
+                k = 1 if dp == s_j[0] else 10
                 if s_i[0] == s_j[1]:
-                    e[i, j] = 1
+                    quad[i, j] = k
                 elif s_i[0] == s_j[0]:
-                    e[i, j] = 10
+                    quad[i, j] = 10 * k
                 else:
-                    e[i, j] = 5
+                    quad[i, j] = 5 * k
             elif m_i == 2 and m_i == 1:
+                k = 1 if dp == s_i[0] else 10
                 if s_i[0] == s_j[0]:
-                    e[i, j] = 10
+                    quad[i, j] = 10 * k
                 elif s_i[1] == s_j[0]:
-                    e[i, j] = 1
+                    quad[i, j] = k
                 else:
-                    e[i, j] = 5
+                    quad[i, j] = 5 * k
             elif m_i == 2 and m_j == 2:
+                k = 1 if dp == s_i[0] else 10
                 if s_i[0] == s_j[0]:
-                    e[i, j] = 0 if s_i[1] == s_j[1] else 1
+                    quad[i, j] = 0 if s_i[1] == s_j[1] else k
                 else:
-                    e[i, j] = 10
+                    quad[i, j] = 10 * k
 
-    return e
+    return diag, quad
 
 
 
@@ -62,10 +70,10 @@ def solve_combinatorial_problem(n: int, k: int, e):
     # So, H = sum(x_i) + 2 * sum_{i<j} x_i*x_j - 2k*sum(x_i) + k^2
     # H = (1 - 2k)*sum(x_i) + 2 * sum_{i<j} x_i*x_j + k^2
 
-    linear_terms = {i: (1 - 2 * k) for i in range(n)}
+    linear_terms = {i: (1 - 2 * k) + e[0][i] for i in range(n)}
     quadratic_terms = {(i, j): 2 for i in range(n) for j in range(i + 1, n)}
     for i in quadratic_terms:
-        quadratic_terms[i] = quadratic_terms[i] + e[i]
+        quadratic_terms[i] = quadratic_terms[i] + e[1][i]
 
     bqm = BinaryQuadraticModel(linear_terms, quadratic_terms, 0.0, 'BINARY')
 
@@ -87,7 +95,7 @@ if __name__ == "__main__":
     n = len(input_data)
     k = delivery_vehicles['n'][0]
 
-    e = create_evaluate1(n, delivery)
+    e = create_evaluate1(n, delivery, "中古車C")
 
     sampleset = solve_combinatorial_problem(n, k, e)
     print(sampleset)
