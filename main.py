@@ -22,16 +22,9 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
     # 係数の初期化
     quad = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
     diag = {i: 1 for i in range(n)}
-    
-    # 表記ゆれを変形する
-    delivery = delivery.str.replace("（法人）"  , "")
-    delivery = delivery.str.replace("B", "店")
-
-    # " → "で出発地点と配送先に分ける
-    s = delivery.str.split(' → ')
 
     for i in range(n):
-        s_i = s[i]
+        s_i = delivery[i]
         m_i = len(s_i)
 
         # 線形項の係数を調整する
@@ -44,7 +37,7 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
 
         # 交互作用項の係数を調整する
         for j in range(i + 1, n):
-            s_j = s[j]
+            s_j = delivery[j]
 
             m_j = len(s_j)
             # s_i, s_jともに配送先しか記載がない場合
@@ -138,7 +131,7 @@ if __name__ == "__main__":
     k = delivery_vehicles['n'][0]
     conversed_delivery = conv_delivery(delivery)
 
-    eval = create_evaluate1(n, delivery, "中古車C")
+    eval = create_evaluate1(n, conversed_delivery, "中古車C")
 
     sampleset = solve_combinatorial_problem(n, k, eval)
     #print(sampleset)
