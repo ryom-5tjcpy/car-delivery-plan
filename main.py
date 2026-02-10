@@ -75,8 +75,6 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
 
     return diag, quad
 
-
-
 def solve_combinatorial_problem(n: int, k: int, eval):
     """
     Solves a combinatorial optimization problem with the constraint sum(x_i) = k
@@ -114,6 +112,21 @@ def solve_combinatorial_problem(n: int, k: int, eval):
 
     return sampleset
 
+def conv_delivery(delivery: pd.Series):
+    """
+    パラメータの表記ゆれを変形し，
+    回収先と配送先に分ける．
+    
+    :param delivery: 回収地点と配送先が記入されたデータ
+    :type delivery: pd.Series
+    """
+    # 表記ゆれを変形する
+    delivery = delivery.str.replace("（法人）"  , "")
+    delivery = delivery.str.replace("B", "店")
+
+    # " → "で出発地点と配送先に分ける
+    return delivery.str.split(' → ')
+
 if __name__ == "__main__":
     input_data = pd.read_excel('data/sample/山陽IC_INPUT.xlsx', header=1, usecols='B:J')
     delivery_vehicles = pd.read_csv('data/sanyo/delivery-vehicle.csv')
@@ -123,6 +136,7 @@ if __name__ == "__main__":
 
     n = len(input_data)
     k = delivery_vehicles['n'][0]
+    conversed_delivery = conv_delivery(delivery)
 
     eval = create_evaluate1(n, delivery, "中古車C")
 
