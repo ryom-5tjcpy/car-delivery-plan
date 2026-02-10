@@ -21,7 +21,7 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
     """
     # 係数の初期化
     quad = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
-    diag = {i: 1 for i in range(n)}
+    diag = {i: 0 for i in range(n)}
 
     for i in range(n):
         s_i = delivery[i]
@@ -101,7 +101,7 @@ def solve_combinatorial_problem(n: int, k: int, eval):
     sampler = oj.SASampler()
 
     # Run the problem on the sampler
-    sampleset = sampler.sample(bqm, num_reads=10000) # Increased num_reads for potentially better results
+    sampleset = sampler.sample(bqm, num_reads=1000) # Increased num_reads for potentially better results
 
     return sampleset
 
