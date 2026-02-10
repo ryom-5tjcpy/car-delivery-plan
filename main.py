@@ -29,7 +29,7 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
 
         # 線形項の係数を調整する
         # 出発地点がパラメータspと異なる場合はペナルティが大きくなる。
-        # 出発地点が不明なものは少しだけペナルティが大きいが異なる場合と比べると小さい。
+        # 出発地点が不明なものは少しだけペナルティが大きいが、出発地点が異なる場合と比べると小さい。
         if m_i == 2 and s_i[0] != sp:
             diag[i] = 10
         elif m_i == 1:
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     k = delivery_vehicles['n'][0]
     conversed_delivery = conv_delivery(delivery)
 
-    eval = create_evaluate1(n, conversed_delivery, "中古車C")
+    eval = create_evaluate1(n, conversed_delivery, "野田店")
 
     sampleset = solve_combinatorial_problem(n, k, eval)
     #print(sampleset)
