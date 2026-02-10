@@ -33,7 +33,7 @@ def create_evaluate1(n: int, delivery: pd.Series, sp: str):
         if m_i == 2 and s_i[0] != sp:
             diag[i] = 10
         elif m_i == 1:
-            diag[i] = 2
+            diag[i] = 2 if s_i[0] != sp else 10
 
         # 交互作用項の係数を調整する
         for j in range(i + 1, n):
