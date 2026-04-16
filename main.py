@@ -5,70 +5,43 @@ import openjij as oj
 from openjij import BinaryQuadraticModel
 import pandas as pd
 
-def create_evaluate1(n: int, delivery: pd.Series, sp: str):
-    """
-    量子アニーリングの評価関数の係数を作成する関数。
+def get_source_and_destination(delivery):
+    n = len(delivery)
+    if n == 2:
+        return delivery[0], delivery[1]
     
-    :param n: deliveryパラメータの個数
-    :type n: int
-    :param delivery: 出発地点と配送先を記入した配列
-    :type delivery: pd.Series
-    :param sp: 出発地点
-    :type sp: str
+    return None, delivery[0]
 
-    Returns:
-    評価関数の係数
-    """
-    # 係数の初期化
+def create_weights(n: int, deliveries: pd.Series, src: str):
     quad = {(i, j): 0 for i in range(n) for j in range(i + 1, n)}
     diag = {i: 0 for i in range(n)}
 
     for i in range(n):
-        s_i = delivery[i]
-        m_i = len(s_i)
+        s_i = deliveries[i]
+        src_i, des_i = get_source_and_destination(s_i)
 
-        # 線形項の係数を調整する
-        # 出発地点がパラメータspと異なる場合はペナルティが大きくなる。
-        # 出発地点が不明なものは少しだけペナルティが大きいが、出発地点が異なる場合と比べると小さい。
-        if m_i == 2 and s_i[0] != sp:
+        if src_i == None:
+            if des_i != src:
+                diag[i] = 2
+            else:
+                diag[i] = 10
+        elif src_i != src:
             diag[i] = 10
-        elif m_i == 1:
-            diag[i] = 2 if s_i[0] != sp else 10
 
-        # 交互作用項の係数を調整する
         for j in range(i + 1, n):
-            s_j = delivery[j]
+            s_j = deliveries[j]
+            src_j, des_j = get_source_and_destination(s_j)
 
-            m_j = len(s_j)
-            # s_i, s_jともに配送先しか記載がない場合
-            if m_i == 1 and m_j == 1:
-                quad[i, j] = 0 if s_i[0] == s_j[0] else 5
-            # s_iが配送先しか記載がない場合
-            elif m_i == 1 and m_j == 2:
-                if s_i[0] == s_j[1]:
-                    quad[i, j] = 0
-                elif s_i[0] == s_j[0]:
-                    quad[i, j] = 10
-                else:
-                    quad[i, j] = 20
-            # s_jが配送先しか記載がない場合
-            elif m_i == 2 and m_j == 1:
-                if s_i[0] == s_j[0]:
-                    quad[i, j] = 10
-                elif s_i[1] == s_j[0]:
-                    quad[i, j] = 0
-                else:
-                    quad[i, j] = 20
-            # s_i, s_jともに出発地点が記載されている場合
-            elif m_i == 2 and m_j == 2:
-                if s_i[0] == s_j[0]:
-                    quad[i, j] = 0 if s_i[1] == s_j[1] else 2
-                else:
-                    quad[i, j] = 10
+            if src_i == src_j:
+                quad[i, j] = 0 if des_i == des_j else 5 if src_i == None or src_j == None else 1
+            else:
+                quad[i, j] = 10
+
 
     return diag, quad
 
-def solve_combinatorial_problem(n: int, k: int, eval):
+
+def solve_combinatorial_problem(n: int, k: int, linear: dict, quadratic: dict):
     """
     Solves a combinatorial optimization problem with the constraint sum(x_i) = k
     for n binary variables x_i using quantum annealing with OpenJij.
@@ -92,8 +65,8 @@ def solve_combinatorial_problem(n: int, k: int, eval):
     # So, H = sum(x_i) + 2 * sum_{i<j} x_i*x_j - 2k*sum(x_i) + k^2
     # H = (1 - 2k)*sum(x_i) + 2 * sum_{i<j} x_i*x_j + k^2
 
-    linear_terms = {i: (eval[0][i] + 1 - 2 * k) + eval[0][i] for i in range(n)}
-    quadratic_terms = {(i, j): eval[1][i, j] + 2 for i in range(n) for j in range(i + 1, n)}
+    linear_terms = {i: (linear[i] + 1 - 2 * k) + linear[i] for i in range(n)}
+    quadratic_terms = {(i, j): quadratic[i, j] + 2 for i in range(n) for j in range(i + 1, n)}
 
     bqm = BinaryQuadraticModel(linear_terms, quadratic_terms, 0.0, 'BINARY')
 
@@ -125,15 +98,14 @@ if __name__ == "__main__":
     delivery_vehicles = pd.read_csv('data/sanyo/delivery-vehicle.csv')
 
     input_data = input_data.drop(87).reset_index(drop=True)
-    delivery = input_data['回送先']
+    deliveries = input_data['回送先']
 
     n = len(input_data)
     k = delivery_vehicles['n'][0]
-    conversed_delivery = conv_delivery(delivery)
+    conversed_deliveries = conv_delivery(deliveries)
+    diag, quad = create_weights(n, conversed_deliveries, "野田店")
 
-    eval = create_evaluate1(n, conversed_delivery, "野田店")
-
-    sampleset = solve_combinatorial_problem(n, k, eval)
+    sampleset = solve_combinatorial_problem(n, k, diag, quad)
     #print(sampleset)
     print(sum(sampleset.first.sample[i] for i in range(n)))
     print(sampleset.first.energy)
@@ -142,4 +114,4 @@ if __name__ == "__main__":
     for i in range(n):
         key[i] = sampleset.first.sample[i] == 1
     
-    print(delivery[key])
+    print(deliveries[key])
