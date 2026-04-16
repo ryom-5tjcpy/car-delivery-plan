@@ -35,7 +35,7 @@ def create_weights(n: int, deliveries: pd.Series, src: str):
             if src_i == src_j:
                 quad[i, j] = 0 if des_i == des_j else 5 if src_i == None else 1
             else:
-                quad[i, j] = 10 if des_i == des_j else 20 if src_i == None or src_j == None else 1
+                quad[i, j] = 20 if src_i == None or src_j == None else 10
 
 
     return diag, quad
