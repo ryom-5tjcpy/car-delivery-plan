@@ -52,7 +52,11 @@ coords = {
     "△△車輛": np.array([34.71033749824907, 133.86233713956912]),
     "○○岡山営業所": np.array([34.6199524505259, 133.87903214522797]),
     "○○岡山新見店": np.array([34.994260979999055, 133.44116203495304]),
-    "○○岡山津山店": np.array([35.05477433641165, 134.00309984286147])
+    "○○岡山津山店": np.array([35.05477433641165, 134.00309984286147]),
+    "倉敷店": np.array([34.586852950295494, 133.78487538709288]),
+    "備前店": np.array([34.74636215944565, 134.20202166391874]),
+    "○○倉敷店": np.array([34.586288134222016, 133.7966207167915]),
+    "○○特販部": np.array([34.63200770824816, 133.92227706152727])
 }
 
 def eauclid_norm(point1, point2):
@@ -62,20 +66,39 @@ load_capacity = 5
 lam_load_cap = 10000
 N_DATA = len(df)
 
-linear_terms = {i: lam_load_cap * (1 - 2 * load_capacity) for i in range(N_DATA)}
-quadratic_terms = {(i, j): 2 * lam_load_cap for i in range(N_DATA) for j in range(i + 1, N_DATA)}
+def get_equality_constraint(n: int, k: int, lam: float):
+    linear_terms = {i: lam * (1 - 2 * k) for i in range(n)}
+    quadratic_terms = {(i, j): 2 * lam for i in range(n) for j in range(i + 1, n)}
+    return linear_terms, quadratic_terms
 
-for i in range(N_DATA):
-    o_i = df['origin'].iloc[i]
-    origin_i = coords.get(o_i, np.zeros(2)) if pd.notna(o_i) else coords['PDI']
-    destination_i = coords.get(df['destination'].iloc[i], np.zeros(2))
-    for j in range(i + 1, N_DATA):
-        o_j = df['origin'].iloc[j]
-        origin_j = coords.get(o_j, np.zeros(2)) if pd.notna(o_j) else coords['PDI']
-        destination_j = coords.get(df['destination'].iloc[j], np.zeros(2))
-        
-        # Example QUBO term (replace with actual logic)
-        quadratic_terms[(i, j)] += eauclid_norm(destination_i - origin_i, destination_j - origin_j)
+def get_movement_distance_constraint(n: int):
+    quadratic_terms = {}
+    for i in range(n):
+        o_i = df['origin'].iloc[i]
+        origin_i = coords[o_i] if pd.notna(o_i) else coords['PDI']
+        destination_i = coords[df["destination"].iloc[i]]
+
+        for j in range(i + 1, n):
+            o_j = df['origin'].iloc[j]
+            origin_j = coords[o_j] if pd.notna(o_j) else coords['PDI']
+            destination_j = coords[df["destination"].iloc[j]]
+
+            quadratic_terms[(i, j)] = eauclid_norm(destination_i - origin_i, destination_j - origin_j)
+
+    return quadratic_terms
+
+linear_terms = {}
+quadratic_terms = {}
+
+linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_load_cap)
+qua = get_movement_distance_constraint(N_DATA)
+
+for k in range(2):
+    for i in range(N_DATA):
+        linear_terms[k * N_DATA + i] = linear_equ[i]
+
+        for j in range(i + 1, N_DATA):
+            quadratic_terms[k * N_DATA + i, k * N_DATA + j] = qua[i, j] + quadratic_equ[i, j]
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
 
@@ -84,10 +107,18 @@ sampler = oj.SASampler()
 sampleset = sampler.sample(bqm, num_reads=1000)
 
 print(sum(sampleset.first.sample[i] for i in range(N_DATA)))
-print(sampleset.first.energy)
 
 key = np.zeros(N_DATA, dtype=bool)
 for i in range(N_DATA):
     key[i] = sampleset.first.sample[i] == 1
+
+print(df[key])
+
+print()
+
+key = np.zeros(N_DATA, dtype=bool)
+for i in range(N_DATA):
+    if sampleset.first.sample[N_DATA + i] == 1:
+        key[i] = True
 
 print(df[key])
