@@ -62,8 +62,11 @@ coords = {
 def eauclid_norm(point1, point2):
     return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
+N_TASK = 2
+
 load_capacity = 5
 lam_load_cap = 10000
+lam1 = 10000
 N_DATA = len(df)
 
 def get_equality_constraint(n: int, k: int, lam: float):
@@ -93,12 +96,23 @@ quadratic_terms = {}
 linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_load_cap)
 qua = get_movement_distance_constraint(N_DATA)
 
-for k in range(2):
+for k in range(N_TASK):
     for i in range(N_DATA):
         linear_terms[k * N_DATA + i] = linear_equ[i]
 
         for j in range(i + 1, N_DATA):
             quadratic_terms[k * N_DATA + i, k * N_DATA + j] = qua[i, j] + quadratic_equ[i, j]
+
+
+# --------------- 一意制約 ----------------------
+for key, var in linear_terms.items():
+    linear_terms[key] = var - lam1
+
+for k in range(1, N_TASK):
+    for i in range(N_DATA):
+        for j in range(N_DATA):
+            quadratic_terms[i, k * N_DATA + j] = 2
+# -----------------------------------------------
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
 
