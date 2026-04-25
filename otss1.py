@@ -66,7 +66,7 @@ N_TASK = 3
 
 load_capacity = 5
 lam_load_cap = 10000
-lam1 = 10000
+lam1 = 5000
 N_DATA = len(df)
 
 def get_equality_constraint(n: int, k: int, lam: float):
@@ -96,13 +96,13 @@ quadratic_terms = {}
 linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_load_cap)
 qua = get_movement_distance_constraint(N_DATA)
 
-# --------------- 距離制約 ----------------------
-for k in range(N_TASK):
+# --------------- 距離制約 + 個数制約 ----------------------
+for k0 in range(N_TASK):
     for i in range(N_DATA):
-        linear_terms[k * N_DATA + i] = linear_equ[i]
+        linear_terms[k0 * N_DATA + i] = linear_equ[i]
 
         for j in range(i + 1, N_DATA):
-            quadratic_terms[k * N_DATA + i, k * N_DATA + j] = qua[i, j] + quadratic_equ[i, j]
+            quadratic_terms[k0 * N_DATA + i, k0 * N_DATA + j] = qua[i, j] + quadratic_equ[i, j]
 # ----------------------------------------------
 
 
@@ -110,9 +110,10 @@ for k in range(N_TASK):
 for key, var in linear_terms.items():
     linear_terms[key] = var - lam1
 
-for k in range(1, N_TASK):
-    for i in range(N_DATA):
-        quadratic_terms[i, k * N_DATA + i] = 2 * lam1
+for k0 in range(1, N_TASK):
+    for k1 in range(k0 + 1, N_TASK):
+        for i in range(N_DATA):
+            quadratic_terms[k0 * N_DATA + i, k1 * N_DATA + i] = 2 * lam1
 # -----------------------------------------------
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
@@ -123,9 +124,9 @@ sampleset = sampler.sample(bqm, num_reads=1000)
 
 print(sum(sampleset.first.sample[i] for i in range(N_DATA)))
 
-for k in range(N_TASK):
+for k0 in range(N_TASK):
     key = np.zeros(N_DATA, dtype=bool)
     for i in range(N_DATA):
-        key[i] = sampleset.first.sample[k * N_DATA + i] == 1
+        key[i] = sampleset.first.sample[k0 * N_DATA + i] == 1
 
     print(df[key])
