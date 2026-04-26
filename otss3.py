@@ -81,7 +81,7 @@ def create_distance_matrix():
 dist_matrix = create_distance_matrix()
 N_LOCATIONS = len(coords)
 
-N_TASK = 1
+N_TASK = 3
 
 load_capacity = 5
 lam_load_cap = 10000
@@ -110,38 +110,31 @@ def get_movement_distance_constraint(n: int):
 
     return quadratic_terms
 
-def get_distance_constraint(n: int):
-    quadratic_terms = {}
-    for i in range(n):
-        o_i = df['origin'].iloc[i]
-        o_i = o_i if pd.notna(o_i) else 'PDI'
-        i1 = keys.index(o_i)
-        for j in range(N_LOCATIONS):
-            quadratic_terms[i, j] = dist_matrix[i1, j]
-
-    return quadratic_terms
-
 linear_terms = {}
 quadratic_terms = {}
 
 linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_load_cap)
 qua = get_movement_distance_constraint(N_DATA)
-dist = get_distance_constraint(N_DATA)
 
+# ------------------------ #1 順路によるペナルティ ----------------------
 for k in range(N_TASK):
     i0 = k * (N_LOCATIONS + N_DATA)
     for i in range(N_LOCATIONS):
+        # --------------- #1.1 ある地点に存在する制約 -------------------
         add_dict(linear_terms, i0 + i, -lam2)
 
         for j in range(i + 1, N_LOCATIONS):
             add_dict(quadratic_terms, (i0 + i, i0 + j), 2 * lam2)
+        # -------------------------------------------------------------
 
         for j in range(N_DATA):
             o_j = df['origin'].iloc[j]
             o_j = o_j if pd.notna(o_j) else 'PDI'
             j1 = keys.index(o_j)
             add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), dist_matrix[i, j1])
+# ---------------------------------------------------------------------
 
+# ----------------------- #2 最大積載量によるペナルティ -----------------
 for k in range(N_TASK):
     i0 = k * (N_LOCATIONS + N_DATA)
     for i in range(N_DATA):
@@ -149,6 +142,21 @@ for k in range(N_TASK):
 
         for j in range(i + 1, N_DATA):
             add_dict(quadratic_terms, (i0 + i + N_LOCATIONS, i0 + j + N_LOCATIONS), quadratic_equ[i, j] + qua[i, j])
+# ---------------------------------------------------------------------
+
+# ----------------------- #3 一意制約 ----------------------------------
+for k in range(N_TASK):
+    i0 = k * (N_LOCATIONS + N_DATA)
+    for i in range(N_DATA):
+        add_dict(linear_terms, i0 + i + N_LOCATIONS, -lam1)
+
+for k0 in range(N_TASK):
+    for k1 in range(k0 + 1, N_TASK):
+        i0 = k0 * (N_LOCATIONS + N_DATA) + N_LOCATIONS
+        i1 = k1 * (N_LOCATIONS + N_DATA) + N_LOCATIONS
+        for i in range(N_DATA):
+            add_dict(quadratic_terms, (i0 + i, i1 + i), 2 * lam1)
+# ---------------------------------------------------------------------
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
 
