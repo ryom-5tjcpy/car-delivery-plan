@@ -84,9 +84,10 @@ N_LOCATIONS = len(coords)
 N_TASK = 3
 
 load_capacity = 5
-lam_load_cap = 10000
-lam1 = 6000
+lam_load_cap = 1
+lam1 = 1
 lam2 = 1
+lam3 = 1
 N_DATA = len(df)
 
 def get_equality_constraint(n: int, k: int, lam: float):
@@ -159,13 +160,16 @@ for t0 in range(N_TASK):
 # ---------------------------------------------------------------------
 
 # ----------------------- #4 移動距離によるペナルティ -------------------
-for t0 in range(N_TASK):
+for t1 in range(1, N_TASK):
+    t0 = t1 - 1
     i0 = t0 * (N_LOCATIONS + N_DATA)
-    for t1 in range(t0 + 1, N_TASK):
-        j0 = t1 * (N_LOCATIONS + N_DATA)
-        for i in range(N_LOCATIONS):
-            for j in range(N_LOCATIONS):
-               add_dict(quadratic_terms, (i0 + i, j0 + j), 10 * dist_matrix[i, j])
+    j0 = t1 * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
+        for j in range(N_LOCATIONS):
+            add_dict(quadratic_terms, (i0 + i, j0 + j), 10 * dist_matrix[i, j])
+
+        add_dict(linear_terms, i0 + i, -lam3)
+        add_dict(quadratic_terms, (i0 + i, j0 + i), 2 * lam3)
 # ---------------------------------------------------------------------
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
@@ -176,6 +180,7 @@ sampleset = sampler.sample(bqm, num_reads=1000)
 
 
 for t in range(N_TASK):
+    print(f"Task {t}:")
     key = np.zeros(N_DATA, dtype=bool)
     i0 = t * (N_DATA + N_LOCATIONS) + N_LOCATIONS
     for i in range(N_DATA):
@@ -184,7 +189,7 @@ for t in range(N_TASK):
     print(df[key])
 
 for t in range(N_TASK):
-    print(t)
+    print(f"Task {t}:")
     i0 = t * (N_LOCATIONS + N_DATA)
     for i in range(N_LOCATIONS):
         if(sampleset.first.sample[i0 + i] == 1):
