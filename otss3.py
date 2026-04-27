@@ -118,7 +118,7 @@ linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_l
 qua = get_movement_distance_constraint(N_DATA)
 
 # ------------------------ #1 順路によるペナルティ ----------------------
-for t in range(N_TASK):
+for t in range(N_TASK + 1):
     i0 = t * (N_LOCATIONS + N_DATA)
     for i in range(N_LOCATIONS):
         # --------------- #1.1 ある地点に存在する制約 -------------------
@@ -128,6 +128,9 @@ for t in range(N_TASK):
             add_dict(quadratic_terms, (i0 + i, i0 + j), 2 * lam2)
         # -------------------------------------------------------------
 
+for t in range(N_TASK):
+    i0 = t * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
         for j in range(N_DATA):
             o_j = df['origin'].iloc[j]
             o_j = o_j if pd.notna(o_j) else 'PDI'
@@ -147,9 +150,9 @@ for t in range(N_TASK):
 
 # ----------------------- #3 一意制約 ----------------------------------
 for t in range(N_TASK):
-    i0 = t * (N_LOCATIONS + N_DATA)
+    i0 = t * (N_LOCATIONS + N_DATA) + N_LOCATIONS
     for i in range(N_DATA):
-        add_dict(linear_terms, i0 + i + N_LOCATIONS, -lam1)
+        add_dict(linear_terms, i0 + i, -lam1)
 
 for t0 in range(N_TASK):
     for t1 in range(t0 + 1, N_TASK):
@@ -160,8 +163,8 @@ for t0 in range(N_TASK):
 # ---------------------------------------------------------------------
 
 # ----------------------- #4 移動距離によるペナルティ -------------------
-for t1 in range(1, N_TASK):
-    t0 = t1 - 1
+for t0 in range(N_TASK):
+    t1 = t0 + 1
     i0 = t0 * (N_LOCATIONS + N_DATA)
     j0 = t1 * (N_LOCATIONS + N_DATA)
     for i in range(N_LOCATIONS):
