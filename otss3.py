@@ -70,11 +70,21 @@ def add_dict(d: dict, key, value: float):
 def eauclid_norm(point1, point2):
     return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
+def haversine(coord1, coord2):
+    R = 6371  # Earth radius in kilometers
+    lat1, lon1 = np.radians(coord1)
+    lat2, lon2 = np.radians(coord2)
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return R * c
+
 def create_distance_matrix():
     distance_matrix = np.zeros((len(coords), len(coords)))
     for i, (_, coord1) in enumerate(coords.items()):
         for j, (_, coord2) in enumerate(coords.items()):
-            distance_matrix[i, j] = eauclid_norm(coord1, coord2)
+            distance_matrix[i, j] = haversine(coord1, coord2)
     return distance_matrix
 
 
@@ -84,10 +94,10 @@ N_LOCATIONS = len(coords)
 N_TASK = 3
 
 load_capacity = 5
-lam_load_cap = 1
-lam1 = 1
-lam2 = 5
-lam3 = 1
+lam_load_cap = 10
+lam1 = 5
+lam2 = 45
+lam3 = 30
 N_DATA = len(df)
 
 def get_equality_constraint(n: int, k: int, lam: float):
@@ -107,7 +117,7 @@ def get_movement_distance_constraint(n: int):
             origin_j = coords[o_j] if pd.notna(o_j) else coords['PDI']
             destination_j = coords[df["destination"].iloc[j]]
 
-            quadratic_terms[(i, j)] = eauclid_norm(destination_i - origin_i, destination_j - origin_j)
+            quadratic_terms[(i, j)] = haversine(destination_i - origin_i, destination_j - origin_j)
 
     return quadratic_terms
 
@@ -135,7 +145,7 @@ for t in range(N_TASK):
             o_j = df['origin'].iloc[j]
             o_j = o_j if pd.notna(o_j) else 'PDI'
             j1 = keys.index(o_j)
-            add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), 20 * dist_matrix[i, j1])
+            add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), dist_matrix[i, j1])
 
 for t in range(1, N_TASK + 1):
     i0 = t * (N_LOCATIONS + N_DATA) - N_DATA
@@ -143,7 +153,7 @@ for t in range(1, N_TASK + 1):
         d_i = df["destination"].iloc[i]
         i1 = keys.index(d_i)
         for j in range(N_LOCATIONS):
-            add_dict(quadratic_terms, (i0 + i1, i0 + N_DATA + j), 20 * dist_matrix[i1, j])
+            add_dict(quadratic_terms, (i0 + i1, i0 + N_DATA + j), dist_matrix[i1, j])
 # ---------------------------------------------------------------------
 
 # ----------------------- #2 最大積載量によるペナルティ -----------------
@@ -153,7 +163,7 @@ for t in range(N_TASK):
         add_dict(linear_terms, i0 + i, linear_equ[i])
 
         for j in range(i + 1, N_DATA):
-            add_dict(quadratic_terms, (i0 + i, i0 + j), quadratic_equ[i, j] + 10 * qua[i, j])
+            add_dict(quadratic_terms, (i0 + i, i0 + j), quadratic_equ[i, j] + qua[i, j])
 # ---------------------------------------------------------------------
 
 # ----------------------- #3 一意制約 ----------------------------------
@@ -177,7 +187,7 @@ for t0 in range(N_TASK):
     j0 = t1 * (N_LOCATIONS + N_DATA)
     for i in range(N_LOCATIONS):
         for j in range(N_LOCATIONS):
-            add_dict(quadratic_terms, (i0 + i, j0 + j), 10 * dist_matrix[i, j])
+            add_dict(quadratic_terms, (i0 + i, j0 + j), dist_matrix[i, j])
 
         add_dict(linear_terms, i0 + i, -lam3)
         add_dict(quadratic_terms, (i0 + i, j0 + i), 2 * lam3)
