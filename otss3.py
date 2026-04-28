@@ -135,7 +135,7 @@ for t in range(N_TASK):
             o_j = df['origin'].iloc[j]
             o_j = o_j if pd.notna(o_j) else 'PDI'
             j1 = keys.index(o_j)
-            add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), 10 * dist_matrix[i, j1])
+            add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), 20 * dist_matrix[i, j1])
 # ---------------------------------------------------------------------
 
 # ----------------------- #2 最大積載量によるペナルティ -----------------
@@ -145,7 +145,7 @@ for t in range(N_TASK):
         add_dict(linear_terms, i0 + i, linear_equ[i])
 
         for j in range(i + 1, N_DATA):
-            add_dict(quadratic_terms, (i0 + i, i0 + j), quadratic_equ[i, j] + qua[i, j])
+            add_dict(quadratic_terms, (i0 + i, i0 + j), quadratic_equ[i, j] + 10 * qua[i, j])
 # ---------------------------------------------------------------------
 
 # ----------------------- #3 一意制約 ----------------------------------
