@@ -86,7 +86,7 @@ N_TASK = 3
 load_capacity = 5
 lam_load_cap = 1
 lam1 = 1
-lam2 = 1
+lam2 = 5
 lam3 = 1
 N_DATA = len(df)
 
@@ -136,6 +136,14 @@ for t in range(N_TASK):
             o_j = o_j if pd.notna(o_j) else 'PDI'
             j1 = keys.index(o_j)
             add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), 20 * dist_matrix[i, j1])
+
+for t in range(1, N_TASK + 1):
+    i0 = t * (N_LOCATIONS + N_DATA) - N_DATA
+    for i in range(N_DATA):
+        d_i = df["destination"].iloc[i]
+        i1 = keys.index(d_i)
+        for j in range(N_LOCATIONS):
+            add_dict(quadratic_terms, (i0 + i1, i0 + N_DATA + j), 20 * dist_matrix[i1, j])
 # ---------------------------------------------------------------------
 
 # ----------------------- #2 最大積載量によるペナルティ -----------------
