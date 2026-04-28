@@ -29,7 +29,7 @@ coords = {
     "倉敷中島店": np.array([34.58135157279875, 133.73489229636525]),
     "中庄店": np.array([34.63701941823053, 133.81998295403938]),
     "平島店": np.array([34.705126772918085, 134.05694605404224]),
-    "十日市店": np.array([34.705126772918085, 134.05694605404224]),
+    "十日市店": np.array([34.6351758190501, 133.93032221938307]),
     "高屋店": np.array([34.6740798816033, 133.97155189275097]),
     "玉野紅陽台店": np.array([34.54297235593657, 133.89015340112158]),
     "中古車C": np.array([34.748790746336795, 134.0236317423281]),
@@ -59,21 +59,43 @@ coords = {
     "○○特販部": np.array([34.63200770824816, 133.92227706152727])
 }
 
-def eauclid_norm(point1, point2):
-    return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+keys = list(coords.keys())
+
+def add_dict(d: dict, key, value: float):
+    if key in d:
+        d[key] += value
+    else:
+        d[key] = value
+
+def haversine(coord1, coord2):
+    R = 6371  # Earth radius in kilometers
+    lat1, lon1 = np.radians(coord1)
+    lat2, lon2 = np.radians(coord2)
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return R * c
 
 def create_distance_matrix():
-    distance_matrix = np.zeros((len(coords), len(coords)))
+    n = len(coords)
+    distance_matrix = np.zeros((n, n))
     for i, (_, coord1) in enumerate(coords.items()):
         for j, (_, coord2) in enumerate(coords.items()):
-            distance_matrix[i, j] = eauclid_norm(coord1, coord2)
+            distance_matrix[i, j] = haversine(coord1, coord2)
     return distance_matrix
+
+
+dist_matrix = create_distance_matrix()
+N_LOCATIONS = len(coords)
 
 N_TASK = 3
 
 load_capacity = 5
-lam_load_cap = 10000
-lam1 = 6000
+lam_load_cap = 10
+lam1 = 5
+lam2 = 50
+lam3 = 30
 N_DATA = len(df)
 
 def get_equality_constraint(n: int, k: int, lam: float):
@@ -93,7 +115,7 @@ def get_movement_distance_constraint(n: int):
             origin_j = coords[o_j] if pd.notna(o_j) else coords['PDI']
             destination_j = coords[df["destination"].iloc[j]]
 
-            quadratic_terms[(i, j)] = eauclid_norm(destination_i - origin_i, destination_j - origin_j)
+            quadratic_terms[(i, j)] = haversine(destination_i - origin_i, destination_j - origin_j)
 
     return quadratic_terms
 
@@ -103,31 +125,71 @@ quadratic_terms = {}
 linear_equ, quadratic_equ = get_equality_constraint(N_DATA, load_capacity, lam_load_cap)
 qua = get_movement_distance_constraint(N_DATA)
 
-# --------------- 距離制約 + 個数制約 ----------------------
-for k0 in range(N_TASK):
+# ------------------------ #1 順路によるペナルティ ----------------------
+for t in range(N_TASK + 1):
+    i0 = t * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
+        # --------------- #1.1 ある地点に存在する制約 -------------------
+        add_dict(linear_terms, i0 + i, -lam2)
+
+        for j in range(i + 1, N_LOCATIONS):
+            add_dict(quadratic_terms, (i0 + i, i0 + j), 2 * lam2)
+        # -------------------------------------------------------------
+
+for t in range(N_TASK):
+    i0 = t * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
+        for j in range(N_DATA):
+            o_j = df['origin'].iloc[j]
+            o_j = o_j if pd.notna(o_j) else 'PDI'
+            j1 = keys.index(o_j)
+            add_dict(quadratic_terms, (i0 + i, i0 + j + N_LOCATIONS), 5 * dist_matrix[i, j1])
+
+for t in range(1, N_TASK + 1):
+    i0 = t * (N_LOCATIONS + N_DATA) - N_DATA
     for i in range(N_DATA):
-        linear_terms[k0 * N_DATA + i] = linear_equ[i]
+        d_i = df["destination"].iloc[i]
+        i1 = keys.index(d_i)
+        for j in range(N_LOCATIONS):
+            add_dict(quadratic_terms, (i0 + i1, i0 + N_DATA + j), dist_matrix[i1, j])
+# ---------------------------------------------------------------------
+
+# ----------------------- #2 最大積載量によるペナルティ -----------------
+for t in range(N_TASK):
+    i0 = t * (N_LOCATIONS + N_DATA) + N_LOCATIONS
+    for i in range(N_DATA):
+        add_dict(linear_terms, i0 + i, linear_equ[i])
 
         for j in range(i + 1, N_DATA):
-            quadratic_terms[k0 * N_DATA + i, k0 * N_DATA + j] = qua[i, j] + quadratic_equ[i, j]
-# ----------------------------------------------
+            add_dict(quadratic_terms, (i0 + i, i0 + j), quadratic_equ[i, j] + qua[i, j])
+# ---------------------------------------------------------------------
 
+# ----------------------- #3 一意制約 ----------------------------------
+for t in range(N_TASK):
+    i0 = t * (N_LOCATIONS + N_DATA) + N_LOCATIONS
+    for i in range(N_DATA):
+        add_dict(linear_terms, i0 + i, -lam1)
 
-# --------------- 一意制約 ----------------------
-for key, var in linear_terms.items():
-    linear_terms[key] = var - lam1
-
-for k0 in range(N_TASK):
-    for k1 in range(k0 + 1, N_TASK):
+for t0 in range(N_TASK):
+    for t1 in range(t0 + 1, N_TASK):
+        i0 = t0 * (N_LOCATIONS + N_DATA) + N_LOCATIONS
+        j0 = t1 * (N_LOCATIONS + N_DATA) + N_LOCATIONS
         for i in range(N_DATA):
-            quadratic_terms[k0 * N_DATA + i, k1 * N_DATA + i] = 2 * lam1
-# -----------------------------------------------
+            add_dict(quadratic_terms, (i0 + i, j0 + i), 2 * lam1)
+# ---------------------------------------------------------------------
 
-# --------------- 順路制約 -----------------------
-i0 = N_TASK * N_DATA
-n = len(coords)
+# ----------------------- #4 移動距離によるペナルティ -------------------
+for t0 in range(N_TASK):
+    t1 = t0 + 1
+    i0 = t0 * (N_LOCATIONS + N_DATA)
+    j0 = t1 * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
+        for j in range(N_LOCATIONS):
+            add_dict(quadratic_terms, (i0 + i, j0 + j), dist_matrix[i, j])
 
-# -----------------------------------------------
+        add_dict(linear_terms, i0 + i, -lam3)
+        add_dict(quadratic_terms, (i0 + i, j0 + i), 2 * lam3)
+# ---------------------------------------------------------------------
 
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
 
@@ -135,11 +197,18 @@ sampler = oj.SASampler()
 
 sampleset = sampler.sample(bqm, num_reads=1000)
 
-print(sum(sampleset.first.sample[i] for i in range(N_DATA)))
-
-for k0 in range(N_TASK):
+for t in range(N_TASK):
+    print(f"Task {t}:")
     key = np.zeros(N_DATA, dtype=bool)
+    i0 = t * (N_DATA + N_LOCATIONS) + N_LOCATIONS
     for i in range(N_DATA):
-        key[i] = sampleset.first.sample[k0 * N_DATA + i] == 1
+        key[i] = sampleset.first.sample[i0 + i] == 1
 
     print(df[key])
+
+for t in range(N_TASK):
+    print(f"Task {t}:")
+    i0 = t * (N_LOCATIONS + N_DATA)
+    for i in range(N_LOCATIONS):
+        if(sampleset.first.sample[i0 + i] == 1):
+            print(keys[i])
