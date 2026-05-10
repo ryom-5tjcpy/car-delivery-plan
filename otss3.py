@@ -136,6 +136,15 @@ for i in range(N_DATA):
             add_dict(linear_terms, j0 + i, lam_pair)
             add_dict(quadratic_terms, (i0 + i, j0 + i), -2 * lam_pair)
 
+for t in range(N_TASK):
+    for tau in range(t + 1):
+        for i in range(N_DATA):
+            i0 = 2 * tau * N_DATA
+            add_dict(linear_terms, i0 + i, (1 - 2 * load_capacity) * lam_load_cap)
+
+            for j in range(i + 1, N_DATA):
+                add_dict(quadratic_terms, (i0 + i, i0 + j), 2 * lam_load_cap)
+
 bqm = BinaryQuadraticModel(linear=linear_terms, quadratic=quadratic_terms, offset=0.0, vartype='BINARY')
 
 sampler = oj.SASampler()
